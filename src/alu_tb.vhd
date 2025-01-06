@@ -2,11 +2,11 @@
 library ieee;
 use ieee.std_logic_1164.all; --include arrays
 
-entity alu_entity_tb is
+entity alu_tb is
 
-end alu_entity_tb;
+end alu_tb;
 
-architecture alu_arch_tb of alu_entity_tb is
+architecture alu_arch_tb of alu_tb is
 
 begin
 
