@@ -3,7 +3,7 @@
     "tasks": [
         {
             "label": "runC",
-            "command": "./run.sh",
+            "command": "run.sh",
             "type": "shell",
             "args": ["c"],
             "options": {
@@ -16,7 +16,7 @@
         },
         {
             "label": "analyze",
-            "command": "./run.sh",
+            "command": "run.sh",
             "type": "shell",
             "options": {
                 "cwd": "${workspaceFolder}"
