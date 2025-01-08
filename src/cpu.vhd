@@ -3,13 +3,12 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity cpu_entity is Port(
-    Input  : in std_logic_vector(7 downto 0);
-    r_w    : in std_logic;
-    debug  : in std_logic;
-    nxt    : in std_logic;
-    prev   : in std_logic;
-    clk    : in std_logic;
-    output : out unsigned(4 downto 0)
+    Input  : in std_logic_vector(7 downto 0); --instruction word
+    r_w    : in std_logic; --read/!write
+    debug  : in std_logic; --debug mode
+    step   : in std_logic; --step into memory location
+    count  : in std_logic; --count upwards/downwards
+    output : out unsigned(4 downto 0) --instruction output
 );
 end cpu_entity;
 
@@ -36,7 +35,44 @@ architecture cpu_arch of cpu_entity is
   signal alu_left   : unsigned(4 downto 0);
   signal alu_right  : unsigned(4 downto 0);
   signal alu_action : alu_action_t;
+--================================================
+-- 2K x 8 Static RAM
+  signal instruction_mode : unsigned(7 downto 0);
+  signal pc: unsigned(7 downto 0);
+  signal mem_addr : unsigned(10 downto 0);
+  signal mem_data : unsigned(7 downto 0);
+
 begin
+
+  ram : process(clk,debug,r_w)
+    begin
+      if rising_edge(clk) then
+        mem_addr<=pc;
+        if debug = '1' then
+          if r_w ='1' then
+            Input<=mem_data;
+          elsif r_w='0' then
+            mem_data<=Input;
+          end if;
+        end if;
+      end if;
+
+  end process ram;
+
+  program_counter : process(clk,debug,step,count)
+    begin
+      if rising_edge(clk) then
+        if debug = '1' then
+            if step = '1' then
+                if count = '1' then
+                    pc <= pc + 1;
+                elsif count = '0' then
+                    pc <= pc - 1;
+                end if;
+            end if;
+        end if;
+    end if;
+  end process program_counter;
 
   acumulator : process(clk)
     begin
