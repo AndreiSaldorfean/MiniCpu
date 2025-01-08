@@ -4,9 +4,10 @@ if [ "$1" = "c" ]; then
     fi
     ghdl -a src/cpu.vhd
     ghdl -a src/cpu_tb.vhd
-    ghdl -e cpu_entity_tb
-    ghdl -r cpu_entity_tb --vcd=build/cpu_tb.vcd
+    ghdl -e tb_cpu_entity
+    ghdl -r tb_cpu_entity --vcd=build/cpu_tb.vcd
     mv *.cf build
 else
     gtkwave build/cpu_tb.vcd
+    mv *.cf build
 fi
