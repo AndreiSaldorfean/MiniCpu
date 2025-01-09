@@ -3,7 +3,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity cpu_entity is Port(
-    Input  : in std_logic_vector(7 downto 0); --instruction word
+    byte_word  : in unsigned(7 downto 0); --instruction word
     r_w    : in std_logic; --read/!write
     load    : in std_logic;
     cnt_down: in std_logic;
@@ -52,23 +52,21 @@ architecture cpu_arch of cpu_entity is
   signal reset : std_logic;
   -- RAM 2K x 8 Static RAM
   signal instruction_mode : unsigned(7 downto 0);
-  signal pc: unsigned(7 downto 0);
-  signal mem_addr : unsigned(10 downto 0);
+  -- signal pc: unsigned(7 downto 0);
+  signal mem_addr : unsigned(7 downto 0);
   signal mem_data : unsigned(7 downto 0);
   signal operand        : unsigned(2 downto 0);
   signal imm            : unsigned(4 downto 0);
 
 begin
 
-  ram : process(clk,debug,r_w)
+  ram : process(q,debug,r_w)
     begin
-      if rising_edge(clk) then
-        mem_addr<=pc;
+      -- if rising_edge(clk) then
+        mem_addr<=q;
         if debug = '1' then
-          if r_w ='1' then
-            Input<=mem_data;
-          elsif r_w='0' then
-            mem_data<=Input;
+          if not r_w ='1' then
+            mem_data<=byte_word;
           end if;
         end if;
 
