@@ -49,12 +49,14 @@ architecture cpu_arch of cpu_entity is
   signal q : unsigned( 7 downto 0);
 
   signal internal_clk : std_logic;
-  signal reset : std_logic;
+  signal reset          : std_logic;
   -- RAM 2K x 8 Static RAM
   signal instruction_mode : unsigned(7 downto 0);
   -- signal pc: unsigned(7 downto 0);
-  signal mem_addr : unsigned(7 downto 0);
-  signal mem_data : unsigned(7 downto 0);
+  signal mem_addr       : unsigned(7 downto 0);
+  -- signal mem_data       : unsigned(7 downto 0);
+  type ram_type is array ((2**8)-1 to 0) of unsigned(7 downto 0);
+  signal mem_data       : ram_type;
   signal operand        : unsigned(2 downto 0);
   signal imm            : unsigned(4 downto 0);
 
@@ -62,13 +64,14 @@ begin
 
   ram : process(q,debug,r_w)
     begin
-      -- if rising_edge(clk) then
         mem_addr<=q;
         if debug = '1' then
           if not r_w ='1' then
-            mem_data<=byte_word;
+            mem_data(to_integer(mem_addr))<=byte_word;
           end if;
         end if;
+        operand <= mem_data(to_integer(mem_addr))(7 downto 5);
+        imm <= mem_data(to_integer(mem_addr))(4 downto 0);
 
   end process ram;
 
