@@ -1,95 +1,94 @@
 library ieee;
-use ieee.std_logic_1164.all; --include arrays
+use ieee.std_logic_1164.all;  --include arrays
+use ieee.numeric_std.all;
+use IEEE.STD_LOGIC_UNSIGNED.all;
 
-entity cpu_entity is Port(
-    Input : in std_logic_vector(7 downto 0);
-    r_w : in std_logic;
-    debug : in std_logic;
-    nxt : in std_logic;
-    prev : in std_logic;
-    clk : in std_logic;
-    output : out std_logic_vector( 3 downto 0)
-);
+entity cpu_entity is
+  Port(
+    Input  : in  std_logic_vector(7 downto 0);  -- Opcode + Immediate
+    r_w    : in  std_logic;
+    debug  : in  std_logic;
+    nxt    : in  std_logic;
+    prev   : in  std_logic;
+    clk    : in  std_logic;
+    output : out std_logic_vector(4 downto 0)
+  );
 end cpu_entity;
 
 architecture cpu_arch of cpu_entity is
-    type pc_action_t is (PC_NOP, PC_INCREMENT, PC_LOAD);
-    type alu_src_t is (ALU_MEMORY, ALU_IMMEDIATE);
-    type alu_action_t is (ALU_OP_LEFT, ALU_OP_RIGHT, ALU_OP_ADD, ALU_OP_SUB, ALU_OP_NOR);
-    type a_action_t is (A_NOP, A_LOAD_ALU, A_LOAD_MEMORY, A_LOAD_IO);
+  type alu_action_t is (
+    ALU_OP_LEFT,
+    ALU_OP_RIGHT,
+    ALU_OP_ADD,
+    ALU_OP_NAND,
+    ALU_OP_XOR,
+    ALU_OP_NOT,
+    ALU_OP_LSH,
+    ALU_OP_RSH
+  );
 
-    signal pc           : unsigned(11 downto 0) := (others => '0');
-    signal a            : std_logic_vector(3 downto 0) := (others => '0');
-    signal alu_right    : std_logic_vector(3 downto 0);
-    signal alu_left_x   : unsigned(4 downto 0);
-    signal alu_right_x  : unsigned(4 downto 0);
-    signal alu_out      : unsigned(4 downto 0);
-
-    signal pc_action    : pc_action_t;
-    signal alu_src      : alu_src_t;
-    signal alu_action   : alu_action_t;
-    signal a_action     : a_action_t;
-    signal mem_write_signal : std_logic := '0';
-    signal io_read_signal   : std_logic := '0';
-    signal io_write_signal  : std_logic := '0';
-    signal prog_addr    : std_logic_vector(11 downto 0);
-    signal mem_addr     : std_logic_vector(11 downto 0);
-    signal prog_data    : std_logic_vector(7 downto 0);
-    signal mem_data_in  : std_logic_vector(7 downto 0);
-    signal mem_data_out : std_logic_vector(7 downto 0);
-    signal io_addr      : std_logic_vector(11 downto 0);
-    signal io_data_out  : std_logic_vector(7 downto 0);
-    signal io_data_in   : std_logic_vector(7 downto 0);
-    signal rst          : std_logic;
-
-
+  signal operand   : std_logic_vector(2 downto 0);
+  signal imm       : std_logic_vector(4 downto 0);
+  signal a         : std_logic_vector(4 downto 0) := (others => '0');
+  signal alu       : alu_action_t := ALU_OP_ADD;
+  signal alu_left  : std_logic_vector(4 downto 0);
+  signal alu_right : std_logic_vector(4 downto 0) := (others => '0');
 
 begin
-    prog_addr <= std_logic_vector(pc);
-    mem_addr <= "0000" & prog_data(7 downto 0); 
-    io_addr <= "00000000" & prog_data(3 downto 0);
-    io_data_out <= "0000" & a;
-    mem_data_out <= "0000" & a;
 
-    -- ALU logic
-    with alu_src select
-    alu_right <= prog_data(3 downto 0) when ALU_IMMEDIATE,
-                 mem_data_in(3 downto 0) when ALU_MEMORY; 
+  -- Extract fields from Input
+  operand <= Input(7 downto 5);
+  imm     <= Input(4 downto 0);
 
-    alu_left_x  <= unsigned('0' & a);
-    alu_right_x <= unsigned('0' & alu_right);
+  -- ALU Operation
+  alu_left <= a;
 
-    with alu_action select
-        alu_out <= alu_left_x                     when ALU_OP_LEFT,
-                   alu_right_x                    when ALU_OP_RIGHT,
-                   (alu_left_x + alu_right_x)     when ALU_OP_ADD,
-                   (alu_left_x - alu_right_x)     when ALU_OP_SUB,
-                   not (alu_left_x or alu_right_x) when ALU_OP_NOR; 
-    
+  with alu select
+    output <= std_logic_vector(unsigned(alu_left) + unsigned(alu_right))   when ALU_OP_ADD,
+              std_logic_vector(unsigned(alu_left) nand unsigned(alu_right)) when ALU_OP_NAND,
+              std_logic_vector(unsigned(alu_left) xor unsigned(alu_right))  when ALU_OP_XOR,
+              std_logic_vector(not unsigned(alu_left))              when ALU_OP_NOT,
+              std_logic_vector(shift_left(unsigned(alu_left), 1)) when ALU_OP_LSH,
+              std_logic_vector(shift_right(unsigned(alu_left), 1)) when ALU_OP_RSH,
+              (others => '0') when others;  -- Default case
 
-    --MEMORY logic
-    
-    update_memory: process(clk, rst)
-    begin
-        if rst = '1' then
-            pc <= (others => '0');
-            a  <= (others => '0');
-        elsif rising_edge(clk) then
-            case a_action is
-                when A_LOAD_ALU    => a <= std_logic_vector(alu_out(3 downto 0));
-                when A_LOAD_MEMORY => a <= mem_data_in(3 downto 0);
-                when A_LOAD_IO     => a <= io_data_in(3 downto 0);
- 
-                when A_NOP         => null;
-            end case;
-
-            case pc_action is
-                when PC_INCREMENT => pc <= pc + 1;
-                when PC_LOAD      => pc <= unsigned(prog_data & prog_data(3 downto 0));
-                when PC_NOP       => null;
-            end case;
-        end if;
-    end process update_memory;
-    
+  -- Sequential Decoder Logic
+  decoder: process(clk)
+  begin
+    if rising_edge(clk) then
+      case operand is
+        when "000" => -- LD: Load immediate value into register `a`
+          a <= imm;
+        when "001" => -- ADD: Perform addition
+          alu_right <= imm;
+          alu <= ALU_OP_ADD;
+          a <= output; -- Store result back into `a`
+        when "010" => -- NAND: Perform bitwise NAND
+          alu_right <= imm;
+          alu <= ALU_OP_NAND;
+          a <= output;
+        when "011" => -- XOR: Perform bitwise XOR
+          alu_right <= imm;
+          alu <= ALU_OP_XOR;
+          a <= output;
+        when "100" => -- NOT: Perform bitwise NOT
+          alu_right <= (others => '0'); -- Ensure alu_right is initialized to zero
+          alu <= ALU_OP_NOT;
+          a <= output;
+        when "101" => -- LSH: Logical shift left
+          alu_right <= (others => '0'); -- Initialize alu_right to zero
+          alu <= ALU_OP_LSH;
+          a <= output;
+        when "110" => -- RSH: Logical shift right
+          alu_right <= (others => '0'); -- Initialize alu_right to zero
+          alu <= ALU_OP_RSH;
+          a <= output;
+        when "111" => -- HALT: Stop operations (no action)
+          null;
+        when others =>
+          null; -- Default case
+      end case;
+    end if;
+  end process;
 
 end cpu_arch;
